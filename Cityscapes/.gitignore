@@ -130,3 +130,15 @@ venv.bak/
 *.pth
 *.py~
 *.sh~
+
+# Local datasets, symlinks, pretrained models, logs and outputs
+MDEQ-Vision/data/cityscapes/
+MDEQ-Vision/pretrained_models/
+MDEQ-Vision/log/
+MDEQ-Vision/logs/
+MDEQ-Vision/output/
+MDEQ-Vision/outputs/
+
+# Local exploratory notebooks with saved outputs / absolute paths
+MDEQ-Vision/graficos.ipynb
+MDEQ-Vision/qualitative_baseline_cityscapes.ipynb
