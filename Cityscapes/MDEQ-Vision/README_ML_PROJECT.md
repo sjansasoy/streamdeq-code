@@ -116,6 +116,17 @@ results/ml_project/
 
 Cityscapes is **not included** in this repository due to size and license restrictions.
 
+For this project, two Cityscapes components are required:
+
+1. The standard Cityscapes train/val/test data, which provides:
+   - `gtFine/`
+   - `leftImg8bit/`
+
+2. The Cityscapes sequence data, which provides:
+   - `leftImg8bit_sequence/`
+
+The semantic labels are taken from `gtFine/`, the standard validation images from `leftImg8bit/`, and the video-frame inputs from `leftImg8bit_sequence/`. Therefore, reproducing the streaming experiments requires both the standard Cityscapes data and the sequence data.
+
 To reproduce the experiments, download Cityscapes from the official source and place or symlink the required folders under:
 
 ```text
