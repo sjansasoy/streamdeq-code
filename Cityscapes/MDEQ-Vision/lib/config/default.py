@@ -62,6 +62,22 @@ _C.DEQ.F_THRES = 30
 _C.DEQ.B_THRES = 40
 _C.DEQ.SPECTRAL_RADIUS_MODE = False
 _C.DEQ.MODE = 'baseline'
+# ML project: controls the initialization passed to the DEQ forward solver
+# during streaming inference. "previous" preserves the original StreamDEQ
+# behavior; "zero" disables temporal warm-start for ablation experiments.
+_C.DEQ.INIT_MODE = 'previous'
+
+# ML project: controls how far back stale initialization looks in the
+# temporal history buffer. STALE_K=2 means using z_{t-2}.
+_C.DEQ.STALE_K = 2
+
+# ML project: controls which scales are reused when INIT_MODE="partial".
+# Available initial options:
+# - "coarse_previous_fine_zero"
+# - "fine_previous_coarse_zero"
+# - "only_high_resolution_previous"
+# - "only_low_resolution_previous"
+_C.DEQ.PARTIAL_INIT_MODE = 'coarse_previous_fine_zero'
 
 _C.LOSS = CN()
 _C.LOSS.JAC_LOSS_FREQ = 0.0

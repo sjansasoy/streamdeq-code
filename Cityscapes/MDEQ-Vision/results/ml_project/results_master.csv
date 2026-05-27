@@ -1,0 +1,57 @@
+phase,context,init_name,init_mode,partial_init_mode,broyden_iterations,miou,notes
+phase0_global,2f,zero,zero,,1,0.0218,global zero initialization
+phase0_global,2f,zero,zero,,2,0.1065,global zero initialization
+phase0_global,2f,zero,zero,,4,0.4233,global zero initialization
+phase0_global,2f,zero,zero,,8,0.7325,global zero initialization
+phase0_global,2f,stale_k2,stale,,1,0.1249,uses z_{t-2}
+phase0_global,2f,stale_k2,stale,,2,0.3698,uses z_{t-2}
+phase0_global,2f,stale_k2,stale,,4,0.6327,uses z_{t-2}
+phase0_global,2f,stale_k2,stale,,8,0.7663,uses z_{t-2}
+phase0_global,2f,previous,previous,,1,0.2349,original StreamDEQ warm-start
+phase0_global,2f,previous,previous,,2,0.5402,original StreamDEQ warm-start
+phase0_global,2f,previous,previous,,4,0.6962,original StreamDEQ warm-start
+phase0_global,2f,previous,previous,,8,0.7827,original StreamDEQ warm-start
+phase0_global,5f,zero,zero,,1,0.0218,global zero initialization
+phase0_global,5f,zero,zero,,2,0.1065,global zero initialization
+phase0_global,5f,zero,zero,,4,0.4233,global zero initialization
+phase0_global,5f,zero,zero,,8,0.7325,global zero initialization
+phase0_global,5f,stale_k2,stale,,1,0.3121,uses z_{t-2}
+phase0_global,5f,stale_k2,stale,,2,0.5040,uses z_{t-2}
+phase0_global,5f,stale_k2,stale,,4,0.6660,uses z_{t-2}
+phase0_global,5f,stale_k2,stale,,8,0.7727,uses z_{t-2}
+phase0_global,5f,previous,previous,,1,0.4274,original StreamDEQ warm-start
+phase0_global,5f,previous,previous,,2,0.5719,original StreamDEQ warm-start
+phase0_global,5f,previous,previous,,4,0.7187,original StreamDEQ warm-start
+phase0_global,5f,previous,previous,,8,0.7826,original StreamDEQ warm-start
+phase1_leave_one_scale,2f,drop_scale0_previous,partial,drop_scale0_previous,1,0.2439,1i YAML uses equivalent scale1_scale2_scale3_previous
+phase1_leave_one_scale,2f,drop_scale0_previous,partial,drop_scale0_previous,2,0.5195,
+phase1_leave_one_scale,2f,drop_scale0_previous,partial,drop_scale0_previous,4,0.6874,
+phase1_leave_one_scale,2f,drop_scale0_previous,partial,drop_scale0_previous,8,0.7790,
+phase1_leave_one_scale,2f,drop_scale1_previous,partial,drop_scale1_previous,1,0.1189,
+phase1_leave_one_scale,2f,drop_scale1_previous,partial,drop_scale1_previous,2,0.3445,
+phase1_leave_one_scale,2f,drop_scale1_previous,partial,drop_scale1_previous,4,0.5979,
+phase1_leave_one_scale,2f,drop_scale1_previous,partial,drop_scale1_previous,8,0.7690,
+phase1_leave_one_scale,2f,drop_scale2_previous,partial,drop_scale2_previous,1,0.1396,
+phase1_leave_one_scale,2f,drop_scale2_previous,partial,drop_scale2_previous,2,0.4214,
+phase1_leave_one_scale,2f,drop_scale2_previous,partial,drop_scale2_previous,4,0.6494,
+phase1_leave_one_scale,2f,drop_scale3_previous,partial,drop_scale3_previous,1,0.1413,
+phase1_leave_one_scale,2f,drop_scale3_previous,partial,drop_scale3_previous,2,0.3951,
+phase1_leave_one_scale,2f,drop_scale3_previous,partial,drop_scale3_previous,4,0.6607,
+phase1_leave_one_scale,5f,drop_scale0_previous,partial,drop_scale0_previous,1,0.3940,
+phase1_leave_one_scale,5f,drop_scale0_previous,partial,drop_scale0_previous,2,0.5812,
+phase1_leave_one_scale,5f,drop_scale0_previous,partial,drop_scale0_previous,4,0.7029,
+phase1_leave_one_scale,5f,drop_scale1_previous,partial,drop_scale1_previous,1,0.1009,
+phase1_leave_one_scale,5f,drop_scale1_previous,partial,drop_scale1_previous,2,0.3924,
+phase1_leave_one_scale,5f,drop_scale1_previous,partial,drop_scale1_previous,4,0.6287,
+phase1_two_scale,2f,scale0_scale1_previous,partial,scale0_scale1_previous,1,0.0966,YAML uses fine_previous_coarse_zero
+phase1_two_scale,2f,scale0_scale1_previous,partial,scale0_scale1_previous,2,0.2665,YAML uses fine_previous_coarse_zero
+phase1_two_scale,2f,scale0_scale2_previous,partial,scale0_scale2_previous,1,0.0217,
+phase1_two_scale,2f,scale0_scale2_previous,partial,scale0_scale2_previous,2,0.2129,
+phase1_two_scale,2f,scale0_scale3_previous,partial,scale0_scale3_previous,1,0.0628,
+phase1_two_scale,2f,scale0_scale3_previous,partial,scale0_scale3_previous,2,0.2067,
+phase1_two_scale,2f,scale1_scale2_previous,partial,scale1_scale2_previous,1,0.1369,
+phase1_two_scale,2f,scale1_scale2_previous,partial,scale1_scale2_previous,2,0.3769,
+phase1_two_scale,2f,scale1_scale3_previous,partial,scale1_scale3_previous,1,0.1482,
+phase1_two_scale,2f,scale1_scale3_previous,partial,scale1_scale3_previous,2,0.3959,
+phase1_two_scale,2f,scale2_scale3_previous,partial,scale2_scale3_previous,1,0.1245,YAML uses coarse_previous_fine_zero
+phase1_two_scale,2f,scale2_scale3_previous,partial,scale2_scale3_previous,2,0.3065,YAML uses coarse_previous_fine_zero

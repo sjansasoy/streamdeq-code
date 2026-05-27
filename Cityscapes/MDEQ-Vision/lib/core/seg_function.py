@@ -1,6 +1,7 @@
 # Modified based on the HRNet repo.
 
 import logging
+from logging import config
 import os
 import time
 import numpy as np
@@ -154,9 +155,13 @@ def validate(config, testloader, model, lr_scheduler, epoch, writer_dict, device
             image = image.to(device)
             label = label.long().to(device)
 
+            # ML project: pass the initialization strategy to the segmentation model.
+            # If DEQ.INIT_MODE is not defined in the config/YAML, we keep the original
+            # StreamDEQ behavior by defaulting to "previous".
             losses, _, pred, _ = model(image, label, train_step=(-1 if epoch < 0 else global_steps),
-                                       compute_jac_loss=False, spectral_radius_mode=spectral_radius_mode,
-                                       writer=writer, mode=mode)
+                                    compute_jac_loss=False, spectral_radius_mode=spectral_radius_mode,
+                                    writer=writer, mode=mode,
+                                    init_mode=getattr(config.DEQ, 'INIT_MODE', 'previous'))
 
             if reset_flag:
                 if hasattr(model, 'module'):
@@ -215,10 +220,16 @@ def testval(config, test_dataset, testloader, model, sv_dir='', sv_pred=False):
                 size = label.size()
             else:
                 size = size[0]
+            # ML project: pass the initialization strategy and stale lag to the
+            # Cityscapes inference path. STALE_K is only used when INIT_MODE="stale".
+            # This is needed because seg_test.py uses testval(), not validate(), for val sets.
             pred = test_dataset.multi_scale_inference(model, image,
-                                                      scales=config.TEST.SCALE_LIST,
-                                                      flip=config.TEST.FLIP_TEST,
-                                                      mode=mode)
+                                                    scales=config.TEST.SCALE_LIST,
+                                                    flip=config.TEST.FLIP_TEST,
+                                                    mode=mode,
+                                                    init_mode=getattr(config.DEQ, 'INIT_MODE', 'previous'),
+                                                    stale_k=getattr(config.DEQ, 'STALE_K', 2),
+                                                    partial_init_mode=getattr(config.DEQ, 'PARTIAL_INIT_MODE', 'coarse_previous_fine_zero'))
 
             if reset_flag:
                 if hasattr(model, 'module'):
@@ -276,7 +287,10 @@ def test(config, test_dataset, testloader, model, sv_dir='', sv_pred=True):
             pred = test_dataset.multi_scale_inference(model, image,
                                                       scales=config.TEST.SCALE_LIST,
                                                       flip=config.TEST.FLIP_TEST,
-                                                      mode=mode)
+                                                      mode=mode,
+                                                      init_mode=getattr(config.DEQ, 'INIT_MODE', 'previous'),
+                                                      stale_k=getattr(config.DEQ, 'STALE_K', 2),
+                                                      partial_init_mode=getattr(config.DEQ, 'PARTIAL_INIT_MODE', 'coarse_previous_fine_zero'))
             if reset_flag:
                 if hasattr(model, 'module'):
                     if hasattr(model.module, 'model'):

@@ -87,7 +87,7 @@ class MDEQClsNet(MDEQNet):
     def _make_head(self, pre_stage_channels):
         """
         Create a classification head that:
-           - Increase the number of features in each resolution 
+           - Increase the number of features in each resolution
            - Downsample higher-resolution equilibria to the lowest-resolution and concatenate
            - Pass through a final FC layer for classification
         """
@@ -95,7 +95,7 @@ class MDEQClsNet(MDEQNet):
         d_model = self.init_chansize
         head_channels = self.head_channels
 
-        # Increasing the number of channels on each resolution when doing classification. 
+        # Increasing the number of channels on each resolution when doing classification.
         incre_modules = []
         for i, channels in enumerate(pre_stage_channels):
             incre_module = self._make_layer(head_block, channels, head_channels[i], blocks=1, stride=1)
@@ -137,7 +137,7 @@ class MDEQClsNet(MDEQNet):
 
     def predict(self, y_list):
         """
-        Given outputs at multiple resolutions, predict the class of the image 
+        Given outputs at multiple resolutions, predict the class of the image
         """
         # Classification Head
         y = self.incre_modules[0](y_list[0])
@@ -199,7 +199,15 @@ class MDEQSegNet(MDEQNet):
                                         nn.Conv2d(last_inp_channels, cfg.DATASET.NUM_CLASSES,
                                                   cfg.MODEL.EXTRA.FINAL_CONV_KERNEL,
                                                   stride=1, padding=1 if cfg.MODEL.EXTRA.FINAL_CONV_KERNEL == 3 else 0))
+
+        # Temporal memory used by the original StreamDEQ warm-start.
+        # It stores the most recent multiscale equilibrium representation.
         self.prev_outs = None
+
+        # ML project: history buffer for stale initialization experiments.
+        # This will allow us to initialize the solver from an older state, e.g. z_{t-2}
+        # instead of always using the immediately previous state z_{t-1}.
+        self.prev_outs_history = []
 
     def segment(self, y):
         """
@@ -216,15 +224,231 @@ class MDEQSegNet(MDEQNet):
         y = self.last_layer(y)
         return y
 
+    # ML project: helper function to build a partial initialization state by reusing only selected scales from the previous frame.
+    def _build_partial_init_state(self, prev_outs, partial_init_mode):
+        """
+        Build a multiscale initialization state by reusing only selected
+        scales from the previous frame and setting the remaining scales to zero.
+
+        The order of scales was diagnosed as:
+            scale 0: high resolution / fine      (1, 88, 256, 512)
+            scale 1: mid-high resolution         (1, 176, 128, 256)
+            scale 2: mid-low resolution          (1, 352, 64, 128)
+            scale 3: low resolution / coarse     (1, 704, 32, 64)
+
+        Therefore:
+            fine scales   = [0, 1]
+            coarse scales = [2, 3]
+        """
+        if prev_outs is None:
+            # At the beginning of a sequence there is no previous state.
+            # Returning None lets _forward use its internal zero initialization.
+            return None
+
+        if not isinstance(prev_outs, (list, tuple)):
+            raise TypeError(
+                f'Expected prev_outs to be a list or tuple, got {type(prev_outs)}'
+            )
+
+        if len(prev_outs) != 4:
+            raise ValueError(
+                f'Expected 4 multiscale states in prev_outs, got {len(prev_outs)}'
+            )
+
+        # Start with zeros at every scale.
+        init_state = [torch.zeros_like(z) for z in prev_outs]
+
+        if partial_init_mode == 'coarse_previous_fine_zero':
+            # Reuse low-resolution semantic scales.
+            reuse_indices = [2, 3]
+
+        elif partial_init_mode == 'fine_previous_coarse_zero':
+            # Reuse high-resolution spatial/detail scales.
+            reuse_indices = [0, 1]
+
+
+        elif partial_init_mode == 'only_high_resolution_previous':
+            # Reuse only the finest/highest-resolution scale.
+            reuse_indices = [0]
+
+        elif partial_init_mode == 'only_low_resolution_previous':
+            # Reuse only the coarsest/lowest-resolution scale.
+            reuse_indices = [3]
+
+        elif partial_init_mode == 'only_scale1_previous':
+            reuse_indices = [1]
+
+        elif partial_init_mode == 'only_scale2_previous':
+            reuse_indices = [2]
+
+        elif partial_init_mode == 'scale1_scale3_previous':
+            reuse_indices = [1, 3]
+
+        elif partial_init_mode == 'scale0_scale2_previous':
+            # Reuse scale 0 and scale 2.
+            reuse_indices = [0, 2]
+
+        elif partial_init_mode == 'scale1_scale2_previous':
+            # Reuse the two intermediate scales.
+            reuse_indices = [1, 2]
+
+        elif partial_init_mode == 'scale0_scale3_previous':
+            # Reuse the finest scale 0 and the coarsest scale 3.
+            reuse_indices = [0, 3]
+
+        elif partial_init_mode == 'scale1_scale2_scale3_previous':
+            # Reuse all scales except the finest/highest-resolution scale 0.
+            reuse_indices = [1, 2, 3]
+
+        elif partial_init_mode == 'drop_scale0_previous':
+            reuse_indices = [1, 2, 3]
+
+        elif partial_init_mode == 'drop_scale1_previous':
+            reuse_indices = [0, 2, 3]
+
+        elif partial_init_mode == 'drop_scale2_previous':
+            reuse_indices = [0, 1, 3]
+
+        elif partial_init_mode == 'drop_scale3_previous':
+            reuse_indices = [0, 1, 2]
+
+        elif partial_init_mode == 'all_previous':
+            # Equivalent to the original StreamDEQ warm-start.
+            reuse_indices = [0, 1, 2, 3]
+
+        elif partial_init_mode == 'all_zero':
+            # Explicit all-zero multiscale initialization.
+            reuse_indices = []
+
+        else:
+            raise ValueError(f'Unknown partial_init_mode: {partial_init_mode}')
+
+        for idx in reuse_indices:
+            init_state[idx] = prev_outs[idx]
+
+        return init_state
+
+    def _select_init_state(self, init_mode, partial_init_mode='coarse_previous_fine_zero',
+                        stale_k=2):
+        """
+        Select the initialization state passed to the DEQ forward solver.
+        """
+        if init_mode == 'previous':
+            # Original StreamDEQ behavior.
+            return self.prev_outs
+
+        elif init_mode == 'zero':
+            # _forward interprets None as zero initialization.
+            return None
+
+        elif init_mode == 'stale':
+            # Use an older state if available; otherwise fall back to previous.
+            if len(self.prev_outs_history) >= stale_k:
+                return self.prev_outs_history[-stale_k]
+            return self.prev_outs
+
+        elif init_mode == 'partial':
+            # New scale-aware initialization mode.
+            return self._build_partial_init_state(
+                self.prev_outs,
+                partial_init_mode
+            )
+
+        else:
+            raise ValueError(f'Unknown init_mode: {init_mode}')
+
     def forward(self, x, train_step=0, **kwargs):
         mode = kwargs.get('mode', 'baseline')
+
+        # Initialization mode for the DEQ solver in streaming inference.
+        # - "previous": original StreamDEQ behavior. The previous frame's
+        #   equilibrium representation is used as the initial state.
+        # - "zero": disables temporal warm-start by forcing the solver to
+        #   start from zero/None even when running in stream mode.
+        #
+        # This option is useful for controlled experiments on the role of
+        # initialization without changing the backbone or retraining the model.
+        init_mode = kwargs.get('init_mode', 'previous')
+
         if mode == 'baseline':
+            # Baseline MDEQ processes each frame independently.
+            # Passing None makes _forward create a zero initialization internally.
             y, jac_loss, sradius = self._forward([x, None], train_step, **kwargs)
             return self.segment(y), jac_loss, sradius
+
         elif mode != 'stream':
             raise ValueError('Mode is not defined.')
-        y, jac_loss, sradius = self._forward([x, self.prev_outs], train_step, **kwargs)
-        self.prev_outs = y.copy()
+
+        # For streaming inference, we need to decide what initialization to pass to the DEQ solver.
+        partial_init_mode = kwargs.get(
+            'partial_init_mode',
+            'coarse_previous_fine_zero'
+        )
+        stale_k = kwargs.get('stale_k', 2)
+
+        init_state = self._select_init_state(
+            init_mode=init_mode,
+            partial_init_mode=partial_init_mode,
+            stale_k=stale_k
+        )
+
+        y, jac_loss, sradius = self._forward([x, init_state], train_step, **kwargs)
+
+        # ------------------------------------------------------------
+        # Temporary diagnostic block: inspect multiscale state structure
+        # ------------------------------------------------------------
+        if not hasattr(self, "_printed_prevouts_diagnostic"):
+            self._printed_prevouts_diagnostic = False
+
+        if not self._printed_prevouts_diagnostic:
+            print("\n[DEBUG prev_outs diagnostic]")
+            print("mode:", mode)
+            print("init_mode:", init_mode)
+            print("type(y):", type(y))
+
+            if isinstance(y, (list, tuple)):
+                print("number of scales in y:", len(y))
+                for i, yi in enumerate(y):
+                    print(
+                        f"scale {i}: shape={tuple(yi.shape)}, "
+                        f"dtype={yi.dtype}, device={yi.device}"
+                    )
+            else:
+                print("y is not a list or tuple.")
+                if hasattr(y, "shape"):
+                    print("y shape:", tuple(y.shape))
+
+            if self.prev_outs is None:
+                print("self.prev_outs is currently None")
+            else:
+                print("type(self.prev_outs):", type(self.prev_outs))
+                if isinstance(self.prev_outs, (list, tuple)):
+                    print("number of scales in self.prev_outs:", len(self.prev_outs))
+                    for i, zi in enumerate(self.prev_outs):
+                        print(
+                            f"prev scale {i}: shape={tuple(zi.shape)}, "
+                            f"dtype={zi.dtype}, device={zi.device}"
+                        )
+
+            self._printed_prevouts_diagnostic = True
+        # ------------------------------------------------------------
+
+        # Always store the current representation so that future frames can use it
+        # when init_mode="previous". This keeps the original temporal memory logic.
+        current_state = y.copy()
+        self.prev_outs = current_state
+
+        # ML project: keep a short history of previous multiscale states.
+        # This buffer will be used by INIT_MODE="stale" to initialize the solver from
+        # an older state instead of the immediately previous one.
+        self.prev_outs_history.append(current_state)
+
+        # Keep the buffer bounded to avoid storing unnecessary old states.
+        # A length of 10 is enough for the first stale-k experiments.
+        max_history_len = 10
+        if len(self.prev_outs_history) > max_history_len:
+            self.prev_outs_history.pop(0)
+
         return self.segment(y), jac_loss, sradius
 
     def init_weights(self, pretrained=''):
@@ -261,9 +485,14 @@ class MDEQSegNet(MDEQNet):
                                if k in model_dict.keys()}
             model_dict.update(pretrained_dict)
             self.load_state_dict(model_dict)
-            
+
     def reset_prev_outs(self):
+        # Reset temporal memory at the end of each sequence.
         self.prev_outs = None
+
+        # ML project: also reset the history buffer used by stale initialization.
+        # This prevents states from one clip from being reused in the next clip.
+        self.prev_outs_history = []
 
 
 def get_cls_net(config, **kwargs):

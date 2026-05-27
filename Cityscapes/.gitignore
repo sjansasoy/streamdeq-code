@@ -142,3 +142,46 @@ MDEQ-Vision/outputs/
 # Local exploratory notebooks with saved outputs / absolute paths
 MDEQ-Vision/graficos.ipynb
 MDEQ-Vision/qualitative_baseline_cityscapes.ipynb
+
+# ============================================================
+# ML project local exploratory files
+# These are not needed to reproduce the code experiments
+# ============================================================
+
+# Exploratory notebooks
+MDEQ-Vision/*.ipynb
+
+# Generated figures for report/presentation
+MDEQ-Vision/figures_ml/
+MDEQ-Vision/figures_phase1/
+
+# Local backup files created during development
+MDEQ-Vision/lib/config/*_original_ml_project.py
+MDEQ-Vision/lib/config/*_previous_zero_ml_project.py
+MDEQ-Vision/lib/config/*_init_mode_ml_project.py
+
+MDEQ-Vision/lib/core/*_original_ml_project.py
+MDEQ-Vision/lib/core/*_previous_zero_ml_project.py
+MDEQ-Vision/lib/core/*_init_mode_ml_project.py
+
+MDEQ-Vision/lib/datasets/*_original_ml_project.py
+MDEQ-Vision/lib/datasets/*_previous_zero_ml_project.py
+MDEQ-Vision/lib/datasets/*_init_mode_ml_project.py
+
+MDEQ-Vision/lib/models/*_original_ml_project.py
+MDEQ-Vision/lib/models/*_previous_zero_ml_project.py
+MDEQ-Vision/lib/models/*_init_mode_ml_project.py
+MDEQ-Vision/lib/models/*.bak*
+
+# Local diagnostic files created while preparing the ML project delivery
+yaml_inventory_ml_project.txt
+partial_modes_in_mdeq.txt
+
+# ============================================================
+# Exploratory YAMLs from ML project development
+# The clean delivery YAMLs are stored under:
+# MDEQ-Vision/experiments/cityscapes/ml_project/
+# ============================================================
+MDEQ-Vision/experiments/cityscapes/seg_mdeq_XL_*_partial_*_gpu0_seq.yaml
+MDEQ-Vision/experiments/cityscapes/seg_mdeq_XL_*_zero_gpu0_seq.yaml
+MDEQ-Vision/experiments/cityscapes/seg_mdeq_XL_*_stale_k2_gpu0_seq.yaml

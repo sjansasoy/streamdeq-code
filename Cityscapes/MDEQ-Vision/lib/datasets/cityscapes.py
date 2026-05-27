@@ -31,7 +31,7 @@ class Cityscapes(BaseDataset):
                  downsample_rate=1,
                  scale_factor=16,
                  mean=[0.485, 0.456, 0.406],
-                 std=[0.229, 0.224, 0.225], 
+                 std=[0.229, 0.224, 0.225],
                  num_frames=100):
 
         super(Cityscapes, self).__init__(ignore_label, base_size,
@@ -127,7 +127,7 @@ class Cityscapes(BaseDataset):
                 label = []
 
             return image.copy(), np.array(size), name, label
-        
+
         if item["label"] is not None:
             label = cv2.imread(os.path.join(self.root, 'cityscapes', item["label"]),
                                cv2.IMREAD_GRAYSCALE)
@@ -143,16 +143,30 @@ class Cityscapes(BaseDataset):
             return image.copy(), label, np.array(size), name
 
         return image.copy(), label.copy(), np.array(size), name
-    
-    def inference(self, model, image, flip=False, mode='baseline'):
+
+    def inference(self, model, image, flip=False, mode='baseline',
+              init_mode='previous', stale_k=2,
+              partial_init_mode='coarse_previous_fine_zero'):
         size = image.size()
-        pred, _, _ = model(x=image, train_step=-1, mode=mode)
+
+        # ML project: forward the initialization strategy and stale lag to the
+        # segmentation model. stale_k is only used when init_mode="stale".
+        pred, _, _ = model(x=image, train_step=-1, mode=mode,
+                        init_mode=init_mode, stale_k=stale_k,
+                        partial_init_mode=partial_init_mode)
         pred = F.upsample(input=pred,
                           size=(size[-2], size[-1]),
                           mode='bilinear')
         if flip:
             flip_img = image.numpy()[:, :, :, ::-1]
-            flip_output, _, _ = model(torch.from_numpy(flip_img.copy()))
+            # ML project: forward the initialization strategy and stale lag to the
+            # segmentation model for flipped images. stale_k is only used when init_mode="stale".
+            flip_output, _, _ = model(x=torch.from_numpy(flip_img.copy()),
+                          train_step=-1,
+                          mode=mode,
+                          init_mode=init_mode,
+                          stale_k=stale_k,
+                          partial_init_mode=partial_init_mode)
             flip_output = F.upsample(input=flip_output,
                                      size=(size[-2], size[-1]),
                                      mode='bilinear')
@@ -162,7 +176,10 @@ class Cityscapes(BaseDataset):
             pred = pred * 0.5
         return pred.exp()
 
-    def multi_scale_inference(self, model, image, scales=[1], flip=False, mode='baseline'):
+    def multi_scale_inference(self, model, image, scales=[1], flip=False,
+                          mode='baseline', init_mode='previous',
+                          stale_k=2,
+                          partial_init_mode='coarse_previous_fine_zero'):
         batch, _, ori_height, ori_width = image.size()
         assert batch == 1, "only supporting batchsize 1."
         image = image.numpy()[0].transpose((1, 2, 0)).copy()
@@ -180,7 +197,8 @@ class Cityscapes(BaseDataset):
                 new_img = new_img.transpose((2, 0, 1))
                 new_img = np.expand_dims(new_img, axis=0)
                 new_img = torch.from_numpy(new_img)
-                preds = self.inference(model, new_img, flip, mode)
+                # ML project: pass init_mode and stale_k through the multi-scale inference path.
+                preds = self.inference(model, new_img, flip, mode, init_mode, stale_k, partial_init_mode)
                 preds = preds[:, :, 0:height, 0:width]
             else:
                 new_h, new_w = new_img.shape[:-1]
@@ -204,7 +222,8 @@ class Cityscapes(BaseDataset):
                         crop_img = crop_img.transpose((2, 0, 1))
                         crop_img = np.expand_dims(crop_img, axis=0)
                         crop_img = torch.from_numpy(crop_img)
-                        pred = self.inference(model, crop_img, flip, mode)
+                        # ML project: pass init_mode and stale_k through the cropped inference path.
+                        pred = self.inference(model, crop_img, flip, mode, init_mode, stale_k, partial_init_mode)
                         preds[:, :, h0:h1, w0:w1] += pred[:, :, 0:h1 - h0, 0:w1 - w0]
                         count[:, :, h0:h1, w0:w1] += 1
                 preds = preds / count
