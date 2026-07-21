@@ -8,15 +8,11 @@ StreamDEQ infers frame-wise representations on videos with minimal per-frame com
 
 ## Repository structure
 
-Each task lives in its own folder with its own `requirements.txt`, configs, and `scripts/`:
-
 | Task | Folder | Framework |
 |------|--------|-----------|
 | Video semantic segmentation | [`Cityscapes/`](Cityscapes/README.md) | MDEQ-Vision |
 | Video object detection | [`ImageNetVID/`](ImageNetVID/README.md) | MMDetection + MDEQ |
 | Video pose estimation | [`MPII/`](MPII/README.md) | MMPose + MDEQ |
-
-Segmentation configs and scripts live under `Cityscapes/MDEQ-Vision/`; detection and pose use `configs/` and `scripts/` at the task root.
 
 ## Model variants
 
@@ -41,7 +37,7 @@ The UR/SUR pair uses a different Cityscapes sequence than the baseline/IL pair a
 
 ## Temporal lookback
 
-How far back in a video StreamDEQ recycles representations is set per task via config:
+How far back in a video StreamDEQ recycles representations is set via each task's respective config files:
 
 - **Segmentation:** `DATASET.TEST_SET` (`val_sequence_{N}_frame.lst`) + iterations in the `seg_mdeq_XL_{N}f_{M}i.yaml` config name.
 - **Detection:** the `{N}f` (reference frames) and `{M}i` (iterations) fields in the `..._stream_{N}f_{M}i.py` config name.
@@ -49,7 +45,7 @@ How far back in a video StreamDEQ recycles representations is set per task via c
 
 ## Quickstart
 
-See each task's `README.md` for dataset setup and pretrained models, and `scripts/` for plain run examples (training and streaming evaluation).
+See each task's `README.md` for dataset setup and `scripts/` for plain run examples (training and streaming evaluation).
 
 Detection:
 ```shell
