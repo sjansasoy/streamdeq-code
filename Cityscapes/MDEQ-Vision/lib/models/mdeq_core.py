@@ -375,6 +375,8 @@ class MDEQNet(nn.Module):
         self.f_thres = cfg['DEQ']['F_THRES']
         self.b_thres = cfg['DEQ']['B_THRES']
         self.stop_mode = cfg['DEQ']['STOP_MODE']
+        self.unroll = cfg['DEQ']['UNROLL']
+        self.stoch = cfg['DEQ']['STOCH']
 
         # Update global variables
         DEQ_EXPAND = cfg['MODEL']['EXPANSION_FACTOR']
@@ -437,8 +439,12 @@ class MDEQNet(nn.Module):
 
         # Multiscale Deep Equilibrium!
         if not deq_mode:
+            if self.stoch and self.unroll:
+                break_point = torch.randint(0, self.num_layers, (1,))
             for layer_ind in range(self.num_layers):
                 z1 = func(z1)
+                if self.stoch and self.unroll and break_point == layer_ind:
+                    break
             new_z1 = z1
             if self.training:
                 if compute_jac_loss:

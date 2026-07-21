@@ -34,7 +34,7 @@ The code presented here merges [MMDetection](https://github.com/open-mmlab/mmdet
 
 ## Usage
 
-* Download ImageNET-VID & DET datasets from the [official source](https://image-net.org/challenges/LSVRC/2015/index.php) and structure the paths as follows:
+* Download ImageNet-VID and DET datasets from the [official source](https://image-net.org/challenges/LSVRC/2015/index.php) and structure the raw data as follows:
 
     ```
     ./data/ILSVRC/
@@ -45,7 +45,7 @@ The code presented here merges [MMDetection](https://github.com/open-mmlab/mmdet
     ./data/ILSVRC/ImageSets
     ```
 
-**Note:** You may find the image sets [here](https://github.com/Scalsol/mega.pytorch/tree/master/datasets/ILSVRC2015/ImageSets).
+**Note:** You may find the image sets [here](https://github.com/Scalsol/mega.pytorch/tree/master/datasets/ILSVRC2015/ImageSets). The training configs expect converted COCO-style JSON annotations under lowercase `data/ILSVRC/annotations/` (for example, `imagenet_vid_train.json`). On case-sensitive filesystems, symlink or rename paths accordingly.
 
 ### Training (4 GPUs Recommended)
 
@@ -55,9 +55,11 @@ The code presented here merges [MMDetection](https://github.com/open-mmlab/mmdet
 
     ```
     bash ./tools/dist_train.sh \
-        configs/streamdeq/faster_rcnn_mdeq_fpn_1x_imagenetvid.py \
+        configs/baseline/faster_rcnn_mdeq_fpn_1x_imagenetvid.py \
         ${GPU_NUM}
     ```
+
+Configs are organized model-wise: `baseline/`, `IL-StreamDEQ/`, and `UR-StreamDEQ/` (backbone definitions stay flat in `configs/mdeq/`). UR- and SUR-StreamDEQ share the `configs/UR-StreamDEQ/` folder since their streaming inference is identical; the SUR (stochastically-unrolled) configs carry a `_stoch` suffix.
 
 For more detailed information (training on single GPU, training with slurm) please visit the [documentation page of MMDetection](https://mmdetection.readthedocs.io/en/v2.10.0/1_exist_data_model.html).
 
@@ -70,9 +72,11 @@ For more detailed information (training on single GPU, training with slurm) plea
 	
     ```
     python -u tools/test.py \
-        configs/streamdeq/faster_rcnn_mdeq_fpn_1x_imagenetvid_stream_[NUM_FRAMES]f_[NUM_ITERS]i.py \
+        configs/IL-StreamDEQ/faster_rcnn_mdeq_fpn_1x_imagenetvid_stream_[NUM_FRAMES]f_[NUM_ITERS]i.py \
         path/to/pretrained/model.pth \
         --eval bbox
     ```
 
-    where [NUM_FRAMES] is the length of each video and [NUM_ITERS] is the number of iterations performed per frame.
+    where [NUM_FRAMES] is the temporal lookback and [NUM_ITERS] is the number of iterations/steps performed per frame. UR-StreamDEQ uses `configs/UR-StreamDEQ/..._unroll_20_stream_[NUM_FRAMES]f_[NUM_ITERS]i.py`; SUR-StreamDEQ uses the same streaming config with its `_stoch`-trained checkpoint.
+
+See `scripts/eval_streaming.sh` for a runnable example.

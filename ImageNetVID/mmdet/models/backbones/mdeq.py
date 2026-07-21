@@ -385,6 +385,8 @@ class MDEQNet(nn.Module):
         self.b_thres = cfg['DEQ']['B_THRES']
         self.stop_mode = cfg['DEQ']['STOP_MODE']
         self.rand_f_thres_delta = cfg['DEQ']['RAND_F_THRES_DELTA']
+        self.unroll = cfg['DEQ']['UNROLL']
+        self.stoch = cfg['DEQ']['STOCH']
 
         # Update global variables
         DEQ_EXPAND = cfg['MODEL']['EXPANSION_FACTOR']
@@ -435,6 +437,7 @@ class MDEQNet(nn.Module):
         f_thres = kwargs.get('f_thres', self.f_thres)
         b_thres = kwargs.get('b_thres', self.b_thres)
         deq_m = kwargs.get('deq_mode', True)
+        video = kwargs.get('video', False)
 
         if isinstance(x_, list):  # Streaming case to start from previous frame's features
             x = x_[0]
@@ -472,8 +475,14 @@ class MDEQNet(nn.Module):
         
         # Multiscale Deep Equilibrium!
         if not deq_mode:
+            if self.stoch and self.unroll and not video:
+                break_point = torch.randint(0, self.num_layers, (1,))
             for layer_ind in range(self.num_layers):
                 z1 = func(z1)
+                if video and ((f_thres - 1) == layer_ind) and self.unroll:
+                    break
+                if self.stoch and self.unroll and not video and break_point == layer_ind:
+                    break
             new_z1 = z1
 
             if self.training:

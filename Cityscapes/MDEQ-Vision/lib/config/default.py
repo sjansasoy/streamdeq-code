@@ -62,6 +62,8 @@ _C.DEQ.F_THRES = 30
 _C.DEQ.B_THRES = 40
 _C.DEQ.SPECTRAL_RADIUS_MODE = False
 _C.DEQ.MODE = 'baseline'
+_C.DEQ.UNROLL = False
+_C.DEQ.STOCH = False
 
 _C.LOSS = CN()
 _C.LOSS.JAC_LOSS_FREQ = 0.0

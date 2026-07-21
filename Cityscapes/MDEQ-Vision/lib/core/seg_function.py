@@ -2,11 +2,11 @@
 
 import logging
 import os
+import random
 import time
 import numpy as np
 import sys
 
-import numpy as np
 import numpy.ma as ma
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -53,6 +53,7 @@ def train(config, epoch, num_epoch, epoch_iters, base_lr, num_iters,
     global_steps = writer_dict['train_global_steps']
     assert global_steps == cur_iters, "Step counter problem... fix this?"
     update_freq = config.LOSS.JAC_INCREMENTAL
+    mode = config.DEQ.MODE  # 'baseline', 'stream', 'unroll'
 
     # Distributed information
     rank = get_rank()
@@ -68,7 +69,7 @@ def train(config, epoch, num_epoch, epoch_iters, base_lr, num_iters,
         if deq_steps < 0:
             factor = config.LOSS.PRETRAIN_JAC_LOSS_WEIGHT
         elif config.LOSS.JAC_STOP_EPOCH <= epoch:
-            # If are above certain epoch, we may want to stop jacobian regularization training
+            # Above a certain epoch, stop Jacobian regularization training
             # (e.g., when the original loss is 0.01 and jac loss is 0.05, the jacobian regularization
             # will be dominating and hurt performance!)
             factor = 0
@@ -80,7 +81,8 @@ def train(config, epoch, num_epoch, epoch_iters, base_lr, num_iters,
         b_thres = config.DEQ.B_THRES
         losses, jac_loss, _, _ = model(images, labels, train_step=global_steps, 
                                        compute_jac_loss=compute_jac_loss,
-                                       f_thres=f_thres, b_thres=b_thres, writer=writer)
+                                       f_thres=f_thres, b_thres=b_thres, writer=writer,
+                                       mode=mode, reset_flag=True)
         loss = losses.mean()
         jac_loss = jac_loss.mean()
 
@@ -98,8 +100,8 @@ def train(config, epoch, num_epoch, epoch_iters, base_lr, num_iters,
         optimizer.step()
         if config.TRAIN.LR_SCHEDULER == 'cosine':
             lr_scheduler.step()
+            lr = optimizer.param_groups[0]['lr']
         else:
-            # If LR scheduler is None
             lr = adjust_learning_rate(optimizer, base_lr, num_iters, i_iter+cur_iters)
         
         # update average loss
@@ -124,7 +126,7 @@ def train(config, epoch, num_epoch, epoch_iters, base_lr, num_iters,
         writer_dict['train_global_steps'] = global_steps
 
         if factor > 0 and global_steps > config.TRAIN.PRETRAIN_STEPS and deq_steps % update_freq == 0:
-             logger.info(f'Note: Adding 0.1 to Jacobian regularization weight.')
+            logger.info('Note: Adding 0.1 to Jacobian regularization weight.')
 
 
 def validate(config, testloader, model, lr_scheduler, epoch, writer_dict, device,
@@ -136,7 +138,7 @@ def validate(config, testloader, model, lr_scheduler, epoch, writer_dict, device
     writer = writer_dict['writer']
     global_steps = writer_dict['train_global_steps']
     confusion_matrix = np.zeros((config.DATASET.NUM_CLASSES, config.DATASET.NUM_CLASSES))
-    mode = config.DEQ.MODE  # 'baseline', 'stream'
+    mode = config.DEQ.MODE  # 'baseline', 'stream', 'unroll'
 
     # Distributed information
     rank = get_rank()
@@ -154,7 +156,7 @@ def validate(config, testloader, model, lr_scheduler, epoch, writer_dict, device
             image = image.to(device)
             label = label.long().to(device)
 
-            losses, _, pred, _ = model(image, label, train_step=(-1 if epoch < 0 else global_steps),
+            losses, _, pred, sradius = model(image, label, train_step=(-1 if epoch < 0 else global_steps),
                                        compute_jac_loss=False, spectral_radius_mode=spectral_radius_mode,
                                        writer=writer, mode=mode)
 
@@ -183,7 +185,7 @@ def validate(config, testloader, model, lr_scheduler, epoch, writer_dict, device
 
                 if spectral_radius_mode:
                     sradius = sradius.mean()
-                    ave_sradius.update(sradius.item(), input.size(0))
+                    ave_sradius.update(sradius.item(), image.size(0))
                 
     confusion_matrix = torch.from_numpy(confusion_matrix).to(device)
     reduced_confusion_matrix = reduce_tensor(confusion_matrix)
@@ -198,14 +200,14 @@ def validate(config, testloader, model, lr_scheduler, epoch, writer_dict, device
 
     if rank == 0:
         if spectral_radius_mode:
-            logger.info(f"Spectral radius over validation set: {sradiuses.average()}")
+            logger.info(f"Spectral radius over validation set: {ave_sradius.average()}")
     return print_loss, mean_IoU, IoU_array
 
 
 def testval(config, test_dataset, testloader, model, sv_dir='', sv_pred=False):
     model.eval()
     confusion_matrix = np.zeros((config.DATASET.NUM_CLASSES, config.DATASET.NUM_CLASSES))
-    mode = config.DEQ.MODE  # 'baseline', 'stream'
+    mode = config.DEQ.MODE  # 'baseline', 'stream', 'unroll'
     with torch.no_grad():
         for index, batch in enumerate(tqdm(testloader)):
             image, label, size, name = batch
@@ -261,8 +263,11 @@ def testval(config, test_dataset, testloader, model, sv_dir='', sv_pred=False):
 
 def test(config, test_dataset, testloader, model, sv_dir='', sv_pred=True):
     model.eval()
-    mode = config.DEQ.MODE  # 'baseline', 'stream'
-    iters = config.DEQ.F_THRES
+    mode = config.DEQ.MODE  # 'baseline', 'stream', 'unroll'
+    if mode == 'unroll':
+        iters = config.MODEL.NUM_LAYERS
+    else:
+        iters = config.DEQ.F_THRES
     reset_flag = False
     with torch.no_grad():
         for i, batch in enumerate(testloader):
