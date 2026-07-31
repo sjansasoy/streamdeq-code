@@ -6,7 +6,7 @@ from .two_stage import TwoStageDetector
 
 @DETECTORS.register_module()
 class StreamDEQ(TwoStageDetector):
-    """Implementation of `Faster R-CNN <https://arxiv.org/abs/1506.01497>`_"""
+    """Streaming video object detector with an MDEQ backbone, Faster R-CNN variant."""
 
     def __init__(self,
                  backbone,
@@ -112,19 +112,25 @@ class StreamDEQ(TwoStageDetector):
             # limit the number of frames to the number of reference frames
             num_frames = num_refs if self.num_frames > num_refs else self.num_frames
 
+        # Unrolled models unroll `f_thres` steps per frame; equilibrium models solve with `f_thres` iterations
+        if self.backbone.unroll:
+            feat_kwargs = dict(f_thres=self.f_thres, deq_mode=False, video=True)
+        else:
+            feat_kwargs = dict(f_thres=self.f_thres)
+
         if ref_img is None:  # Single image processing
-            x, _, _ = self.extract_feat(img, f_thres=self.f_thres)
+            x, _, _ = self.extract_feat(img, **feat_kwargs)
         else:  # Streaming video processing
             inp_list = []  # keeps track of the previous frame's representation
             for i in range(num_frames):
-                if not inp_list:  
-                # For the first frame of a video, we start from scratch
-                    ref_x, _, _ = self.extract_feat(ref_img[0][:, num_refs - num_frames + i], f_thres=self.f_thres)
+                if not inp_list:
+                    # First frame of a video: start from scratch
+                    ref_x, _, _ = self.extract_feat(ref_img[0][:, num_refs - num_frames + i], **feat_kwargs)
                     if num_frames == 1:
                         break
-                else:  
-                # For frames after the first frame, we use the previous representation as the starting point
-                    ref_x, _, _ = self.extract_feat(inp_list, f_thres=self.f_thres)
+                else:
+                    # Later frames: warm-start from the previous representation
+                    ref_x, _, _ = self.extract_feat(inp_list, **feat_kwargs)
                     if (num_refs - num_frames + i + 1) >= num_refs:
                         break
                 inp_list = [ref_img[0][:, num_refs - num_frames + i + 1]]
@@ -132,7 +138,7 @@ class StreamDEQ(TwoStageDetector):
             inp_list = [img]
             inp_list.extend(list(ref_x))
             # Last frame of the video is processed to make predictions
-            x, _, _ = self.extract_feat(inp_list, f_thres=self.f_thres)
+            x, _, _ = self.extract_feat(inp_list, **feat_kwargs)
 
         if self.with_neck:
             x = self.neck(x)

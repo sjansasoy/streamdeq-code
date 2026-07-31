@@ -375,7 +375,10 @@ class MDEQSegNet(MDEQNet):
             # Passing None makes _forward create a zero initialization internally.
             y, jac_loss, sradius = self._forward([x, None], train_step, **kwargs)
             return self.segment(y), jac_loss, sradius
-
+        elif mode == 'unroll':
+            kwargs.update({'deq_mode': False})
+            y, jac_loss, sradius = self._forward([x, None], train_step, **kwargs)
+            return self.segment(y), jac_loss, sradius
         elif mode != 'stream':
             raise ValueError('Mode is not defined.')
 

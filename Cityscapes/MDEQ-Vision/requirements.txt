@@ -1,0 +1,12 @@
+torch
+torchvision
+numpy
+scipy
+opencv-python
+Pillow
+PyYAML
+yacs>=0.1.5
+termcolor
+tqdm
+matplotlib
+tensorboardX

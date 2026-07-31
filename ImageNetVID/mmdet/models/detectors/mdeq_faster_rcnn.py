@@ -155,12 +155,14 @@ class MDEQ_FasterRCNN(TwoStageDetector):
             factor = self.backbone.pretrain_jac_loss_weight
             deq_mode = False
         elif self.training_iter >= self.backbone.jac_stop_iter:
-            # If are above certain epoch, we may want to stop jacobian regularization training
+            # Above a certain epoch, stop Jacobian regularization training
             # (e.g., when the original loss is 0.01 and jac loss is 0.05, the jacobian regularization
             # will be dominating and hurt performance!)
             factor = 0
+        elif self.backbone.jac_loss_weight == 0:
+            factor = 0
         else:
-            # Dynamically schedule the Jacobian reguarlization loss weight, if needed
+            # Dynamically schedule the Jacobian regularization loss weight, if needed
             factor = self.backbone.jac_loss_weight + 0.1 * (deq_steps // self.backbone.update_freq)
         compute_jac_loss = (torch.rand([]).item() < self.backbone.jac_loss_freq) and (factor > 0)
         delta_f_thres = torch.randint(-self.backbone.rand_f_thres_delta, self.backbone.rand_f_thres_delta, []).item() if (
@@ -249,7 +251,12 @@ class MDEQ_FasterRCNN(TwoStageDetector):
         """
         assert self.with_bbox, 'Bbox head must be implemented.'
 
-        x, _, _ = self.extract_feat(img)
+        if self.backbone.pretrain_steps >= 500000:  # Training performed only with non-deq (unroll) mode
+            deq_mode = False
+        else:
+            deq_mode = True
+
+        x, _, _ = self.extract_feat(img, deq_mode=deq_mode)
 
         if self.with_neck:
             x = self.neck(x)
