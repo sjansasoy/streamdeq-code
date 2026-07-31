@@ -98,7 +98,7 @@ bash scripts/launch_training.sh 4 streamdeq_vid_train \
 ```
 
 This runs `tools/dist_train.sh` against
-`configs/streamdeq/faster_rcnn_mdeq_fpn_1x_imagenetvid.py` — the
+`configs/baseline/faster_rcnn_mdeq_fpn_1x_imagenetvid.py` — the
 non-streaming `MDEQ_FasterRCNN` config (7 epochs, matching the paper).
 `StreamDEQ` (the streaming detector class used for evaluation) is not used
 during training — `forward_train` isn't implemented for it.
@@ -124,5 +124,5 @@ across GPUs, one image per GPU per step).
 
 Use the same `tools/test.py` workflow documented in `SETUP_LOG.md` (sections
 7-13), pointing `--checkpoint` at whatever `work_dirs/.../epoch_N.pth` (or
-`latest.pth`) you want to evaluate, with one of the `configs/streamdeq/*_stream_*`
+`latest.pth`) you want to evaluate, with one of the `configs/IL-StreamDEQ/*_stream_*`
 configs.

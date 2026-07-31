@@ -376,7 +376,7 @@ un config nuevo:
 
 ```bash
 CUDA_VISIBLE_DEVICES=1 python tools/test.py \
-    configs/streamdeq/faster_rcnn_mdeq_fpn_1x_imagenetvid_stream_2f_1i.py \
+    configs/IL-StreamDEQ/faster_rcnn_mdeq_fpn_1x_imagenetvid_stream_2f_1i.py \
     pretrained_models/streamdeq_imagenetvid_detector.pth \
     --eval bbox \
     --cfg-options data.test.ann_file=data/ILSVRC/annotations/imagenet_vid_val_subset.json
@@ -391,7 +391,7 @@ absurdas), simplemente ninguna superaba IoU=0.5 con el ground truth.
 
 **Hipótesis:** `1i` fija `f_thres=1` (una sola iteración de Broyden por
 frame — el ajuste más agresivo entre los configs disponibles en
-`configs/streamdeq/`, que solo llegan hasta `2i`), combinado con una muestra
+`configs/IL-StreamDEQ/`, que solo llegan hasta `2i`), combinado con una muestra
 de 41 frames deliberadamente sesgada a videos cortos (elegidos solo por
 velocidad). **Verificación:** misma prueba con `2f_2i` (2 iteraciones) sobre
 el mismo subset →

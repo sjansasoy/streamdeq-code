@@ -27,14 +27,14 @@ This subproject is a standard mmdetection checkout (`mmdet` version pinned in `m
 
 - `mmdet/models/backbones/mdeq.py` — MDEQ backbone (`MDEQModule`, multi-branch fixed-point solver, mirrors the Cityscapes MDEQ core).
 - `mmdet/models/detectors/mdeq_faster_rcnn.py`, `mmdet/models/detectors/streamdeq.py` — Faster R-CNN detectors built on the MDEQ backbone. `StreamDEQ.simple_test` implements the streaming warm-start: it walks the reference-frame buffer, feeding each frame's output as the next frame's fixed-point injection, and only trains on/predicts the final frame in a sequence (`forward_train` is deliberately `NotImplementedError` — **video training is not supported**, only streaming inference).
-- Configs live in `configs/mdeq/` (single-frame baseline) and `configs/streamdeq/` (streaming), named `faster_rcnn_mdeq_fpn_1x_imagenetvid_stream_{N}f_{K}i.py` (N = frames, K = iterations), extending the shared bases in `configs/_base_/`.
+- Configs live in `configs/mdeq/` (single-frame baseline) and `configs/IL-StreamDEQ/` (streaming) and `configs/UR-StreamDEQ/` (unrolled variants), named `faster_rcnn_mdeq_fpn_1x_imagenetvid_stream_{N}f_{K}i.py` (N = frames, K = iterations), extending the shared bases in `configs/_base_/`.
 
 ### Commands (run from `ImageNetVID/`)
 
 ```bash
 # Single-GPU train / test (standard mmdetection CLI)
-python tools/train.py configs/streamdeq/faster_rcnn_mdeq_fpn_1x_imagenetvid_stream_5f_1i.py
-python tools/test.py configs/streamdeq/faster_rcnn_mdeq_fpn_1x_imagenetvid_stream_5f_1i.py <checkpoint> --eval bbox
+python tools/train.py configs/IL-StreamDEQ/faster_rcnn_mdeq_fpn_1x_imagenetvid_stream_5f_1i.py
+python tools/test.py configs/IL-StreamDEQ/faster_rcnn_mdeq_fpn_1x_imagenetvid_stream_5f_1i.py <checkpoint> --eval bbox
 
 # Multi-GPU (torch.distributed)
 bash tools/dist_train.sh <config> <num_gpus>

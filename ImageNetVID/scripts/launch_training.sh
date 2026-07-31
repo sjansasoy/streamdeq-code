@@ -41,11 +41,11 @@ conda activate "$ENV_NAME"
 cd "$REPO_ROOT"
 
 echo "Launching training: $NUM_GPUS GPU(s), env '$ENV_NAME'"
-echo "Config: configs/streamdeq/faster_rcnn_mdeq_fpn_1x_imagenetvid.py"
+echo "Config: configs/baseline/faster_rcnn_mdeq_fpn_1x_imagenetvid.py"
 echo "(This is the non-streaming MDEQ_FasterRCNN config, matching the paper's"
 echo " training setup -- streaming behavior only applies at test time.)"
 
 bash tools/dist_train.sh \
-    configs/streamdeq/faster_rcnn_mdeq_fpn_1x_imagenetvid.py \
+    configs/baseline/faster_rcnn_mdeq_fpn_1x_imagenetvid.py \
     "$NUM_GPUS" \
     $EXTRA_ARGS
